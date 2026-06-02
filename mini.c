@@ -79,7 +79,7 @@ void drawCircle(char buffer[ROWS][COLS], Circle c)
         {
             if(isCirclePoint(x, y, c))
             {
-                buffer[y][x] = '*';
+                buffer[y][x] = '_';
             }
         }
     }
