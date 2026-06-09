@@ -1,181 +1,286 @@
 #include <stdio.h>
-#include <math.h>
 #include <stdlib.h>
+#include <math.h>
 
-#define ROWS 25
-#define COLS 50
+#define WIDTH 80
+#define HEIGHT 24
+#define MAX 100
 
-typedef struct
-{
-    int centerX;
-    int centerY;
-    int radius;
-} Circle;
-typedef struct
-{
-    int x;
-    int y;
-    int width;
-    int height;
-} Rectangle;
+char canvas[HEIGHT][WIDTH];
 
-void initializeBuffer(char buffer[ROWS][COLS]);
-void drawCircle(char buffer[ROWS][COLS], Circle c);
-void displayBuffer(char buffer[ROWS][COLS]);
-int isCirclePoint(int x, int y, Circle c);
-void drawRectangle(char buffer[ROWS][COLS], Rectangle r);
-int main()
-{
-    char buffer[ROWS][COLS];
+struct shape {
+    int kind;
+    int ax, ay, bx, by, cx, cy, r;
+};
 
-    Circle c;
+struct shape obj[MAX];
+int total = 0;
 
-    int choice;
-    Rectangle r;
-
-    do
-    {
-        printf("\n1. Draw Circle\n");
-       
-        printf("2. Draw Rectangle\n");
-         printf("3 Exit\n");
-        printf("Enter choice: ");
-        scanf("%d",&choice);
-
-        switch(choice)
-        {
-            case 1:
-
-                printf("Enter Center X: ");
-                scanf("%d",&c.centerX);
-
-                printf("Enter Center Y: ");
-                scanf("%d",&c.centerY);
-
-                printf("Enter Radius: ");
-                scanf("%d",&c.radius);
-
-                initializeBuffer(buffer);
-
-                drawCircle(buffer,c);
-
-                displayBuffer(buffer);
-
-                break;
-
-            case 2:
-
-    printf("Enter Top Left X: ");
-    scanf("%d",&r.x);
-
-    printf("Enter Top Left Y: ");
-    scanf("%d",&r.y);
-
-    printf("Enter Width: ");
-    scanf("%d",&r.width);
-
-    printf("Enter Height: ");
-    scanf("%d",&r.height);
-
-    initializeBuffer(buffer);
-
-    drawRectangle(buffer,r);
-
-    displayBuffer(buffer);
-
-    break;
-            default:
-                printf("Invalid Choice\n");
-        }
-
-    } while(choice != 5);
-
-    return 0;
+void init_canvas() {
+    int i, j;
+    for(i = 0; i < HEIGHT; i++)
+        for(j = 0; j < WIDTH; j++)
+            canvas[i][j] = '_';
 }
 
-void initializeBuffer(char buffer[ROWS][COLS])
-{
-    int i,j;
+void put_pixel(int x, int y) {
+    if(x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT)
+        canvas[y][x] = '*';
+}
 
-    for(i=0;i<ROWS;i++)
-    {
-        for(j=0;j<COLS;j++)
-        {
-            buffer[i][j]=' ';
-        }
+void draw_line(int x1, int y1, int x2, int y2) {
+    int dx, dy, sx, sy, err, e2;
+    dx = abs(x2 - x1);
+    dy = abs(y2 - y1);
+    if(x1 < x2) sx = 1; else sx = -1;
+    if(y1 < y2) sy = 1; else sy = -1;
+    err = dx - dy;
+
+    while(1) {
+        put_pixel(x1, y1);
+        if(x1 == x2 && y1 == y2) break;
+        e2 = 2 * err;
+        if(e2 > -dy) { err -= dy; x1 += sx; }
+        if(e2 < dx)  { err += dx; y1 += sy; }
     }
 }
 
-int isCirclePoint(int x,int y,Circle c)
-{
-    int value;
-
-    value=(x-c.centerX)*(x-c.centerX)+
-          (y-c.centerY)*(y-c.centerY);
-
-    if(abs(value-(c.radius*c.radius))<=c.radius)
-    {
-        return 1;
-    }
-
-    return 0;
+void draw_rect(int x1, int y1, int x2, int y2) {
+    draw_line(x1, y1, x2, y1);
+    draw_line(x1, y2, x2, y2);
+    draw_line(x1, y1, x1, y2);
+    draw_line(x2, y1, x2, y2);
 }
-void drawRectangle(char buffer[ROWS][COLS], Rectangle r)
-{
+
+void draw_circle(int cx, int cy, int r) {
+    int x = 0;
+    int y = r;
+    int d = 1 - r;
+
+    while(x <= y) {
+        put_pixel(cx+x, cy+y);
+        put_pixel(cx-x, cy+y);
+        put_pixel(cx+x, cy-y);
+        put_pixel(cx-x, cy-y);
+        put_pixel(cx+y, cy+x);
+        put_pixel(cx-y, cy+x);
+        put_pixel(cx+y, cy-x);
+        put_pixel(cx-y, cy-x);
+
+        if(d < 0)
+            d += 2*x + 3;
+        else {
+            d += 2*(x-y) + 5;
+            y--;
+        }
+        x++;
+    }
+}
+
+void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
+    draw_line(x1, y1, x2, y2);
+    draw_line(x2, y2, x3, y3);
+    draw_line(x3, y3, x1, y1);
+}
+
+void render() {
     int i;
-
-    for(i = r.x; i <= r.x + r.width; i++)
-    {
-        if(i >= 0 && i < COLS)
-        {
-            if(r.y >= 0 && r.y < ROWS)
-                buffer[r.y][i] = '*';
-
-            if(r.y + r.height >= 0 && r.y + r.height < ROWS)
-                buffer[r.y + r.height][i] = '*';
-        }
-    }
-
-    for(i = r.y; i <= r.y + r.height; i++)
-    {
-        if(i >= 0 && i < ROWS)
-        {
-            if(r.x >= 0 && r.x < COLS)
-                buffer[i][r.x] = '*';
-
-            if(r.x + r.width >= 0 && r.x + r.width < COLS)
-                buffer[i][r.x + r.width] = '*';
-        }
+    init_canvas();
+    for(i = 0; i < total; i++) {
+        if(obj[i].kind == 1)
+            draw_line(obj[i].ax, obj[i].ay, obj[i].bx, obj[i].by);
+        else if(obj[i].kind == 2)
+            draw_rect(obj[i].ax, obj[i].ay, obj[i].bx, obj[i].by);
+        else if(obj[i].kind == 3)
+            draw_circle(obj[i].ax, obj[i].ay, obj[i].r);
+        else if(obj[i].kind == 4)
+            draw_triangle(obj[i].ax, obj[i].ay, obj[i].bx, obj[i].by, obj[i].cx, obj[i].cy);
     }
 }
 
-void drawCircle(char buffer[ROWS][COLS],Circle c)
-{
-    int x,y;
-
-    for(y=0;y<ROWS;y++)
-    {
-        for(x=0;x<COLS;x++)
-        {
-            if(isCirclePoint(x,y,c))
-            {
-                buffer[y][x]='*';
-            }
-        }
+void show_canvas() {
+    int i, j;
+    for(i = 0; i < HEIGHT; i++) {
+        for(j = 0; j < WIDTH; j++)
+            putchar(canvas[i][j]);
+        putchar('\n');
     }
 }
 
-void displayBuffer(char buffer[ROWS][COLS])
-{
-    int i,j;
+void print_header() {
+    printf("2D Graphics Editor\n");
+    printf("Canvas size: %d x %d\n", WIDTH, HEIGHT);
+}
 
-    for(i=0;i<ROWS;i++)
-    {
-        for(j=0;j<COLS;j++)
-        {
-            printf("%c",buffer[i][j]);
-        }
+void print_menu() {
+    printf("1. Add object\n");
+    printf("2. Delete object\n");
+    printf("3. Modify object\n");
+    printf("4. Display picture\n");
+    printf("5. List objects\n");
+    printf("0. Exit\n");
+    printf("Enter choice: ");
+}
 
+void add_object() {
+    int t;
+    struct shape s;
+
+    printf("\n");
+    printf("Choose shape type:\n");
+    printf("1. Line\n");
+    printf("2. Rectangle\n");
+    printf("3. Circle\n");
+    printf("4. Triangle\n");
+    printf("Enter shape type: ");
+    scanf(" %d", &t);
+
+    s.kind = t;
+    s.ax = s.ay = s.bx = s.by = s.cx = s.cy = s.r = 0;
+
+    if(t == 1) {
+        printf("Enter x1 y1 x2 y2: ");
+        scanf(" %d %d %d %d", &s.ax, &s.ay, &s.bx, &s.by);
+    } else if(t == 2) {
+        printf("Enter top-left x y and bottom-right x y: ");
+        scanf(" %d %d %d %d", &s.ax, &s.ay, &s.bx, &s.by);
+    } else if(t == 3) {
+        printf("Enter center x y and radius: ");
+        scanf(" %d %d %d", &s.ax, &s.ay, &s.r);
+    } else if(t == 4) {
+        printf("Enter x1 y1 x2 y2 x3 y3: ");
+        scanf(" %d %d %d %d %d %d", &s.ax, &s.ay, &s.bx, &s.by, &s.cx, &s.cy);
+    } else {
+        printf("Invalid shape type.\n");
+        return;
+    }
+
+    obj[total] = s;
+    printf("Object added with index %d.\n", total);
+    total++;
+
+    printf("\n");
+    print_header();
+}
+
+void delete_object() {
+    int idx, i;
+    printf("Enter index to delete: ");
+    scanf(" %d", &idx);
+
+    if(idx < 0 || idx >= total) {
+        printf("Invalid index.\n");
+    } else {
+        for(i = idx; i < total - 1; i++)
+            obj[i] = obj[i+1];
+        total--;
+        printf("Object deleted.\n");
+    }
+
+    printf("\n");
+    print_header();
+}
+
+void modify_object() {
+    int idx, t;
+    struct shape s;
+
+    printf("Enter index to modify: ");
+    scanf(" %d", &idx);
+
+    if(idx < 0 || idx >= total) {
+        printf("Invalid index.\n");
         printf("\n");
+        print_header();
+        return;
     }
+
+    printf("Choose shape type:\n");
+    printf("1. Line\n");
+    printf("2. Rectangle\n");
+    printf("3. Circle\n");
+    printf("4. Triangle\n");
+    printf("Enter shape type: ");
+    scanf(" %d", &t);
+
+    s.kind = t;
+    s.ax = s.ay = s.bx = s.by = s.cx = s.cy = s.r = 0;
+
+    if(t == 1) {
+        printf("Enter x1 y1 x2 y2: ");
+        scanf(" %d %d %d %d", &s.ax, &s.ay, &s.bx, &s.by);
+    } else if(t == 2) {
+        printf("Enter top-left x y and bottom-right x y: ");
+        scanf(" %d %d %d %d", &s.ax, &s.ay, &s.bx, &s.by);
+    } else if(t == 3) {
+        printf("Enter center x y and radius: ");
+        scanf(" %d %d %d", &s.ax, &s.ay, &s.r);
+    } else if(t == 4) {
+        printf("Enter x1 y1 x2 y2 x3 y3: ");
+        scanf(" %d %d %d %d %d %d", &s.ax, &s.ay, &s.bx, &s.by, &s.cx, &s.cy);
+    } else {
+        printf("Invalid shape type.\n");
+        printf("\n");
+        print_header();
+        return;
+    }
+
+    obj[idx] = s;
+    printf("Object modified.\n");
+    printf("\n");
+    print_header();
+}
+
+void list_objects() {
+    int i;
+    for(i = 0; i < total; i++) {
+        printf("Index %d: ", i);
+        if(obj[i].kind == 1)
+            printf("Line (%d,%d) to (%d,%d)\n", obj[i].ax, obj[i].ay, obj[i].bx, obj[i].by);
+        else if(obj[i].kind == 2)
+            printf("Rectangle (%d,%d) to (%d,%d)\n", obj[i].ax, obj[i].ay, obj[i].bx, obj[i].by);
+        else if(obj[i].kind == 3)
+            printf("Circle center (%d,%d) radius %d\n", obj[i].ax, obj[i].ay, obj[i].r);
+        else if(obj[i].kind == 4)
+            printf("Triangle (%d,%d) (%d,%d) (%d,%d)\n", obj[i].ax, obj[i].ay, obj[i].bx, obj[i].by, obj[i].cx, obj[i].cy);
+    }
+    printf("\n");
+    print_header();
+}
+
+int main() {
+    int ch;
+
+    print_header();
+
+    while(1) {
+        print_menu();
+
+        if(scanf(" %d", &ch) != 1) break;
+
+        if(ch == 0) {
+            printf("Goodbye.\n");
+            break;
+        } else if(ch == 1) {
+            add_object();
+        } else if(ch == 2) {
+            delete_object();
+        } else if(ch == 3) {
+            modify_object();
+        } else if(ch == 4) {
+            printf("\n");
+            render();
+            show_canvas();
+            printf("\n");
+            print_header();
+        } else if(ch == 5) {
+            list_objects();
+        } else {
+            printf("Invalid choice.\n");
+            printf("\n");
+            print_header();
+        }
+    }
+
+    return 0;
 }
